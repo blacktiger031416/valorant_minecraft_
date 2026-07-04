@@ -1,46 +1,36 @@
 package com.valorantcraft;
 
-import com.valorantcraft.ability.AbilityManager;
-import com.valorantcraft.command.ValorantCommand;
-import com.valorantcraft.match.MatchManager;
-import com.valorantcraft.network.ModNetworking;
-import com.valorantcraft.registry.ModItemGroups;
-import com.valorantcraft.registry.ModItems;
-import com.valorantcraft.weapon.WeaponServerLogic;
 import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.entity.effect.StatusEffectInstance;
+import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Minimal test build: one ability key that gives the player Jump Boost + sends a chat message.
+ * This exists purely to prove the client-input -> network -> server-effect pipeline works before
+ * anything more complex (weapons, spike, matches) is added back on top of it.
+ */
 public class ValorantCraft implements ModInitializer {
 	public static final String MOD_ID = "valorantcraft";
 	public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
 
 	@Override
 	public void onInitialize() {
-		LOGGER.info("[ValorantCraft] Initializing tactical shooter systems...");
+		LOGGER.info("[ValorantCraft] Initializing (minimal test build)...");
 
-		ModItems.register();
-		ModItemGroups.register();
-		ModNetworking.register();
-		ValorantCommand.register();
+		PayloadTypeRegistry.playC2S().register(AbilityPayload.ID, AbilityPayload.CODEC);
 
-		ServerTickEvents.END_SERVER_TICK.register(server -> {
-			WeaponServerLogic.tick(server);
-			AbilityManager.get().tick(server);
-			MatchManager.get().tick(server);
-		});
-
-		ServerLivingEntityEvents.AFTER_DEATH.register((entity, damageSource) -> {
-			if (entity instanceof ServerPlayerEntity victim) {
-				ServerPlayerEntity killer = null;
-				if (damageSource.getAttacker() instanceof ServerPlayerEntity attacker) {
-					killer = attacker;
-				}
-				MatchManager.get().onPlayerKilled(victim, killer);
-			}
-		});
+		ServerPlayNetworking.registerGlobalReceiver(AbilityPayload.ID, (payload, context) ->
+				context.server().execute(() -> {
+					ServerPlayerEntity player = context.player();
+					player.addStatusEffect(new StatusEffectInstance(StatusEffects.JUMP_BOOST, 100, 5));
+					player.sendMessage(Text.literal("[ValorantCraft] Ability used!"), true);
+					LOGGER.info("[ValorantCraft] {} used the test ability", player.getName().getString());
+				}));
 	}
 }
