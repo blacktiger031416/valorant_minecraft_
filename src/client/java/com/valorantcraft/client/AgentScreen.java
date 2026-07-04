@@ -18,6 +18,8 @@ public class AgentScreen extends Screen {
 		int y = this.height / 2 - 10;
 
 		this.addDrawableChild(ButtonWidget.builder(Text.literal("제트"), button -> {
+			ClientAgentState.selected = ClientAgentState.Agent.JETT;
+			this.close();
 		}).dimensions(x, y, width, 20).build());
 	}
 

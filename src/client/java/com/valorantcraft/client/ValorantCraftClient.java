@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
+import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
 
 public class ValorantCraftClient implements ClientModInitializer {
@@ -38,6 +39,8 @@ public class ValorantCraftClient implements ClientModInitializer {
 				openAgentScreenNextTick = false;
 				client.setScreen(new AgentScreen());
 			}
+
+			handleJettPassive(client);
 		});
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
@@ -46,5 +49,21 @@ public class ValorantCraftClient implements ClientModInitializer {
 							openAgentScreenNextTick = true;
 							return 1;
 						}))));
+	}
+
+	/** Jett passive: hold jump while airborne to slow her descent. */
+	private static void handleJettPassive(net.minecraft.client.MinecraftClient client) {
+		if (ClientAgentState.selected != ClientAgentState.Agent.JETT) {
+			return;
+		}
+		var player = client.player;
+		if (player.isOnGround() || !client.options.jumpKey.isPressed()) {
+			return;
+		}
+		Vec3d velocity = player.getVelocity();
+		double slowFallSpeed = -0.15;
+		if (velocity.y < slowFallSpeed) {
+			player.setVelocity(velocity.x, slowFallSpeed, velocity.z);
+		}
 	}
 }
