@@ -14,6 +14,7 @@ import org.lwjgl.glfw.GLFW;
 
 public class ValorantCraftClient implements ClientModInitializer {
 	private static KeyBinding abilityKey;
+	private static KeyBinding dashKey;
 	private static volatile boolean openAgentScreenNextTick = false;
 
 	@Override
@@ -22,6 +23,12 @@ public class ValorantCraftClient implements ClientModInitializer {
 				"key.valorantcraft.ability",
 				InputUtil.Type.KEYSYM,
 				GLFW.GLFW_KEY_Q,
+				"key.category.valorantcraft"
+		));
+		dashKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+				"key.valorantcraft.dash",
+				InputUtil.Type.KEYSYM,
+				GLFW.GLFW_KEY_E,
 				"key.category.valorantcraft"
 		));
 
@@ -41,6 +48,7 @@ public class ValorantCraftClient implements ClientModInitializer {
 			}
 
 			handleJettPassive(client);
+			handleJettDash(client);
 		});
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
@@ -65,5 +73,28 @@ public class ValorantCraftClient implements ClientModInitializer {
 		if (velocity.y < slowFallSpeed) {
 			player.setVelocity(velocity.x, slowFallSpeed, velocity.z);
 		}
+	}
+
+	/**
+	 * Jett's Tailwind: a one-time velocity impulse in the direction she's facing (horizontal only),
+	 * not a teleport - normal collision and friction still apply, so it decays naturally and can't
+	 * punch through walls.
+	 */
+	private static void handleJettDash(net.minecraft.client.MinecraftClient client) {
+		if (ClientAgentState.selected != ClientAgentState.Agent.JETT) {
+			return;
+		}
+		if (!dashKey.wasPressed()) {
+			return;
+		}
+		var player = client.player;
+
+		Vec3d look = player.getRotationVec(1.0f);
+		Vec3d forward = new Vec3d(look.x, 0, look.z).normalize();
+
+		double dashSpeed = 1.6;
+		Vec3d velocity = player.getVelocity();
+		player.setVelocity(forward.x * dashSpeed, velocity.y, forward.z * dashSpeed);
+		player.velocityModified = true;
 	}
 }
