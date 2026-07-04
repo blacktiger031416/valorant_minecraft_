@@ -18,6 +18,7 @@ public class ValorantCraftClient implements ClientModInitializer {
 	private static KeyBinding dashKey;
 	private static KeyBinding smokeKey;
 	private static volatile boolean openAgentScreenNextTick = false;
+	private static boolean smokeKeyWasHeld = false;
 
 	@Override
 	public void onInitializeClient() {
@@ -58,8 +59,12 @@ public class ValorantCraftClient implements ClientModInitializer {
 			handleJettPassive(client);
 			handleJettDash(client);
 
-			if (ClientAgentState.selected == ClientAgentState.Agent.JETT && smokeKey.wasPressed()) {
-				ClientPlayNetworking.send(new SmokePayload());
+			if (ClientAgentState.selected == ClientAgentState.Agent.JETT) {
+				boolean held = smokeKey.isPressed();
+				if (held != smokeKeyWasHeld) {
+					smokeKeyWasHeld = held;
+					ClientPlayNetworking.send(new SmokePayload(held));
+				}
 			}
 		});
 

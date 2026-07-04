@@ -14,19 +14,26 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
- * White-wool block-display "smoke" projectile: flies toward wherever the owner is currently
- * looking (curves if they turn, doesn't teleport/snap), stops and grows + slowly spins on
- * hitting a block, then disappears 3.5s after that.
+ * White-wool block-display "smoke" projectile.
+ *
+ * <p>While the owner holds C, it's guided: steers smoothly toward wherever they're currently
+ * looking, ignoring gravity. The moment they release C, it locks onto whatever direction it had
+ * at that instant and becomes a normal falling projectile (gravity applies) until it lands on a
+ * block. Landing is what triggers the "grow + slowly spin" smoke-cloud transformation, which then
+ * disappears 3.5s later. Only one un-landed projectile per player is allowed at a time.
  */
 public final class SmokeAbility {
-	private static final double FLY_SPEED = 0.6;
+	private static final double GUIDED_SPEED = 0.6;
 	private static final double TURN_RATE = 0.15;
-	private static final int MAX_FLIGHT_TICKS = 60;
+	private static final double GRAVITY_PER_TICK = 0.05;
+	private static final int MAX_FLIGHT_TICKS = 100;
 
 	private static final float INITIAL_SCALE = 0.3f;
 	private static final float EXPANDED_SCALE = 2.5f;
@@ -36,11 +43,39 @@ public final class SmokeAbility {
 	private static final float ROTATE_STEP_DEGREES = 25f;
 
 	private static final List<Projectile> ACTIVE = new ArrayList<>();
+	private static final Map<UUID, Boolean> HOLDING = new HashMap<>();
 
 	private SmokeAbility() {
 	}
 
-	public static void launch(ServerPlayerEntity player) {
+	public static void setHolding(ServerPlayerEntity player, boolean held) {
+		UUID ownerId = player.getUuid();
+		boolean wasHolding = HOLDING.getOrDefault(ownerId, false);
+		HOLDING.put(ownerId, held);
+
+		if (held && !wasHolding) {
+			if (!hasActiveProjectile(ownerId)) {
+				launch(player);
+			}
+		} else if (!held && wasHolding) {
+			for (Projectile projectile : ACTIVE) {
+				if (projectile.ownerId.equals(ownerId) && !projectile.expanded) {
+					projectile.guided = false;
+				}
+			}
+		}
+	}
+
+	private static boolean hasActiveProjectile(UUID ownerId) {
+		for (Projectile projectile : ACTIVE) {
+			if (projectile.ownerId.equals(ownerId) && !projectile.expanded) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	private static void launch(ServerPlayerEntity player) {
 		ServerWorld world = player.getServerWorld();
 		Vec3d direction = player.getRotationVec(1.0f);
 		Vec3d spawnPos = player.getEyePos().add(direction.multiply(0.5));
@@ -52,7 +87,10 @@ public final class SmokeAbility {
 		display.refreshPositionAndAngles(spawnPos.x, spawnPos.y, spawnPos.z, 0, 0);
 		world.spawnEntity(display);
 
-		ACTIVE.add(new Projectile(display, player.getUuid(), direction));
+		Projectile projectile = new Projectile(display, player.getUuid());
+		projectile.velocity = direction.multiply(GUIDED_SPEED);
+		projectile.guided = true;
+		ACTIVE.add(projectile);
 	}
 
 	public static void tick(MinecraftServer server) {
@@ -74,16 +112,22 @@ public final class SmokeAbility {
 	}
 
 	private static void tickFlying(MinecraftServer server, ServerWorld world, Projectile projectile) {
-		ServerPlayerEntity owner = server.getPlayerManager().getPlayer(projectile.ownerId);
-		if (owner != null) {
-			Vec3d targetDirection = owner.getRotationVec(1.0f);
-			projectile.direction = projectile.direction.multiply(1 - TURN_RATE)
-					.add(targetDirection.multiply(TURN_RATE))
-					.normalize();
+		if (projectile.guided) {
+			ServerPlayerEntity owner = server.getPlayerManager().getPlayer(projectile.ownerId);
+			if (owner != null) {
+				Vec3d targetDirection = owner.getRotationVec(1.0f);
+				Vec3d currentDirection = projectile.velocity.normalize();
+				Vec3d newDirection = currentDirection.multiply(1 - TURN_RATE)
+						.add(targetDirection.multiply(TURN_RATE))
+						.normalize();
+				projectile.velocity = newDirection.multiply(GUIDED_SPEED);
+			}
+		} else {
+			projectile.velocity = projectile.velocity.add(0, -GRAVITY_PER_TICK, 0);
 		}
 
 		Vec3d currentPos = projectile.display.getPos();
-		Vec3d nextPos = currentPos.add(projectile.direction.multiply(FLY_SPEED));
+		Vec3d nextPos = currentPos.add(projectile.velocity);
 		BlockPos nextBlockPos = BlockPos.ofFloored(nextPos);
 
 		boolean hitBlock = !world.getBlockState(nextBlockPos).getCollisionShape(world, nextBlockPos).isEmpty();
@@ -138,16 +182,16 @@ public final class SmokeAbility {
 	private static final class Projectile {
 		final DisplayEntity.BlockDisplayEntity display;
 		final UUID ownerId;
-		Vec3d direction;
+		Vec3d velocity = Vec3d.ZERO;
+		boolean guided = false;
 		int flightTicks = 0;
 		boolean expanded = false;
 		long expandTick = 0;
 		float rotationDegrees = 0f;
 
-		Projectile(DisplayEntity.BlockDisplayEntity display, UUID ownerId, Vec3d direction) {
+		Projectile(DisplayEntity.BlockDisplayEntity display, UUID ownerId) {
 			this.display = display;
 			this.ownerId = ownerId;
-			this.direction = direction;
 		}
 	}
 }
