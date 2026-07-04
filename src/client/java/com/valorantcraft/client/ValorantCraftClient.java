@@ -1,6 +1,7 @@
 package com.valorantcraft.client;
 
 import com.valorantcraft.AbilityPayload;
+import com.valorantcraft.SmokePayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
@@ -15,6 +16,7 @@ import org.lwjgl.glfw.GLFW;
 public class ValorantCraftClient implements ClientModInitializer {
 	private static KeyBinding abilityKey;
 	private static KeyBinding dashKey;
+	private static KeyBinding smokeKey;
 	private static volatile boolean openAgentScreenNextTick = false;
 
 	@Override
@@ -29,6 +31,12 @@ public class ValorantCraftClient implements ClientModInitializer {
 				"key.valorantcraft.dash",
 				InputUtil.Type.KEYSYM,
 				GLFW.GLFW_KEY_E,
+				"key.category.valorantcraft"
+		));
+		smokeKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+				"key.valorantcraft.smoke",
+				InputUtil.Type.KEYSYM,
+				GLFW.GLFW_KEY_C,
 				"key.category.valorantcraft"
 		));
 
@@ -49,6 +57,10 @@ public class ValorantCraftClient implements ClientModInitializer {
 
 			handleJettPassive(client);
 			handleJettDash(client);
+
+			if (ClientAgentState.selected == ClientAgentState.Agent.JETT && smokeKey.wasPressed()) {
+				ClientPlayNetworking.send(new SmokePayload());
+			}
 		});
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->

@@ -1,6 +1,7 @@
 package com.valorantcraft;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.entity.effect.StatusEffectInstance;
@@ -24,6 +25,7 @@ public class ValorantCraft implements ModInitializer {
 		LOGGER.info("[ValorantCraft] Initializing (minimal test build)...");
 
 		PayloadTypeRegistry.playC2S().register(AbilityPayload.ID, AbilityPayload.CODEC);
+		PayloadTypeRegistry.playC2S().register(SmokePayload.ID, SmokePayload.CODEC);
 
 		ServerPlayNetworking.registerGlobalReceiver(AbilityPayload.ID, (payload, context) ->
 				context.server().execute(() -> {
@@ -32,5 +34,10 @@ public class ValorantCraft implements ModInitializer {
 					player.sendMessage(Text.literal("[ValorantCraft] Ability used!"), true);
 					LOGGER.info("[ValorantCraft] {} used the test ability", player.getName().getString());
 				}));
+
+		ServerPlayNetworking.registerGlobalReceiver(SmokePayload.ID, (payload, context) ->
+				context.server().execute(() -> SmokeAbility.launch(context.player())));
+
+		ServerTickEvents.END_SERVER_TICK.register(SmokeAbility::tick);
 	}
 }
