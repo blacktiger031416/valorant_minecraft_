@@ -36,7 +36,7 @@ public class ValorantCraft implements ModInitializer {
 				}));
 
 		ServerPlayNetworking.registerGlobalReceiver(SmokePayload.ID, (payload, context) ->
-				context.server().execute(() -> SmokeAbility.setHolding(context.player(), payload.held())));
+				context.server().execute(() -> SmokeAbility.updateHoldState(context.player(), payload.held(), payload.yaw(), payload.pitch())));
 
 		ServerTickEvents.END_SERVER_TICK.register(SmokeAbility::tick);
 	}

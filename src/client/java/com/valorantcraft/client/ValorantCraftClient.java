@@ -58,14 +58,7 @@ public class ValorantCraftClient implements ClientModInitializer {
 
 			handleJettPassive(client);
 			handleJettDash(client);
-
-			if (ClientAgentState.selected == ClientAgentState.Agent.JETT) {
-				boolean held = smokeKey.isPressed();
-				if (held != smokeKeyWasHeld) {
-					smokeKeyWasHeld = held;
-					ClientPlayNetworking.send(new SmokePayload(held));
-				}
-			}
+			handleJettSmoke(client);
 		});
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
@@ -113,5 +106,31 @@ public class ValorantCraftClient implements ClientModInitializer {
 		Vec3d velocity = player.getVelocity();
 		player.setVelocity(forward.x * dashSpeed, velocity.y, forward.z * dashSpeed);
 		player.velocityModified = true;
+	}
+
+	/**
+	 * Jett's Cloudburst: holding C guides the smoke, but the camera itself stays frozen - mouse
+	 * movement is redirected to ClientSmokeAim by ChangeLookDirectionMixin while this is active.
+	 */
+	private static void handleJettSmoke(net.minecraft.client.MinecraftClient client) {
+		if (ClientAgentState.selected != ClientAgentState.Agent.JETT) {
+			return;
+		}
+		var player = client.player;
+		boolean held = smokeKey.isPressed();
+		boolean justReleased = !held && smokeKeyWasHeld;
+
+		if (held && !smokeKeyWasHeld) {
+			ClientSmokeAim.start(player.getYaw(), player.getPitch());
+			ClientAgentState.guidingSmoke = true;
+		}
+		smokeKeyWasHeld = held;
+
+		if (held) {
+			ClientPlayNetworking.send(new SmokePayload(true, ClientSmokeAim.yaw, ClientSmokeAim.pitch));
+		} else if (justReleased) {
+			ClientAgentState.guidingSmoke = false;
+			ClientPlayNetworking.send(new SmokePayload(false, ClientSmokeAim.yaw, ClientSmokeAim.pitch));
+		}
 	}
 }

@@ -44,18 +44,26 @@ public final class SmokeAbility {
 
 	private static final List<Projectile> ACTIVE = new ArrayList<>();
 	private static final Map<UUID, Boolean> HOLDING = new HashMap<>();
+	private static final Map<UUID, Vec3d> AIM_DIRECTION = new HashMap<>();
 
 	private SmokeAbility() {
 	}
 
-	public static void setHolding(ServerPlayerEntity player, boolean held) {
+	/**
+	 * @param yaw   the player's own camera is frozen while guiding, so this is a separately
+	 *              tracked aim direction (see ClientSmokeAim), not the player's actual rotation.
+	 */
+	public static void updateHoldState(ServerPlayerEntity player, boolean held, float yaw, float pitch) {
 		UUID ownerId = player.getUuid();
 		boolean wasHolding = HOLDING.getOrDefault(ownerId, false);
 		HOLDING.put(ownerId, held);
 
+		Vec3d aim = player.getRotationVector(pitch, yaw);
+		AIM_DIRECTION.put(ownerId, aim);
+
 		if (held && !wasHolding) {
 			if (!hasActiveProjectile(ownerId)) {
-				launch(player);
+				launch(player, aim);
 			}
 		} else if (!held && wasHolding) {
 			for (Projectile projectile : ACTIVE) {
@@ -75,9 +83,8 @@ public final class SmokeAbility {
 		return false;
 	}
 
-	private static void launch(ServerPlayerEntity player) {
+	private static void launch(ServerPlayerEntity player, Vec3d direction) {
 		ServerWorld world = player.getServerWorld();
-		Vec3d direction = player.getRotationVec(1.0f);
 		Vec3d spawnPos = player.getEyePos().add(direction.multiply(0.5));
 
 		DisplayEntity.BlockDisplayEntity display = new DisplayEntity.BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
@@ -104,18 +111,17 @@ public final class SmokeAbility {
 			ServerWorld world = (ServerWorld) projectile.display.getWorld();
 
 			if (!projectile.expanded) {
-				tickFlying(server, world, projectile);
+				tickFlying(world, projectile);
 			} else {
 				tickExpanded(world, projectile, iterator);
 			}
 		}
 	}
 
-	private static void tickFlying(MinecraftServer server, ServerWorld world, Projectile projectile) {
+	private static void tickFlying(ServerWorld world, Projectile projectile) {
 		if (projectile.guided) {
-			ServerPlayerEntity owner = server.getPlayerManager().getPlayer(projectile.ownerId);
-			if (owner != null) {
-				Vec3d targetDirection = owner.getRotationVec(1.0f);
+			Vec3d targetDirection = AIM_DIRECTION.get(projectile.ownerId);
+			if (targetDirection != null) {
 				Vec3d currentDirection = projectile.velocity.normalize();
 				Vec3d newDirection = currentDirection.multiply(1 - TURN_RATE)
 						.add(targetDirection.multiply(TURN_RATE))
