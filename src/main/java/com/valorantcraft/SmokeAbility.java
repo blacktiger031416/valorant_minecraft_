@@ -41,6 +41,7 @@ public final class SmokeAbility {
 	private static final int SMOKE_LIFETIME_TICKS = 70; // 3.5s
 	private static final int ROTATE_STEP_TICKS = 8;
 	private static final float ROTATE_STEP_DEGREES = 25f;
+	private static final double LANDING_Y_OFFSET = 1.0;
 
 	private static final List<Projectile> ACTIVE = new ArrayList<>();
 	private static final Map<UUID, Boolean> HOLDING = new HashMap<>();
@@ -140,6 +141,9 @@ public final class SmokeAbility {
 		projectile.flightTicks++;
 
 		if (hitBlock || projectile.flightTicks >= MAX_FLIGHT_TICKS) {
+			// Shift up before growing so the (much bigger) expanded cloud doesn't end up half
+			// buried in whatever it landed on - it was flying at a tiny scale right up until impact.
+			projectile.display.setPosition(currentPos.x, currentPos.y + LANDING_Y_OFFSET, currentPos.z);
 			expand(world, projectile);
 		} else {
 			projectile.display.setPosition(nextPos.x, nextPos.y, nextPos.z);
