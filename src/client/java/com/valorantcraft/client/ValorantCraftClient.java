@@ -13,6 +13,7 @@ import org.lwjgl.glfw.GLFW;
 
 public class ValorantCraftClient implements ClientModInitializer {
 	private static KeyBinding abilityKey;
+	private static volatile boolean openAgentScreenNextTick = false;
 
 	@Override
 	public void onInitializeClient() {
@@ -30,12 +31,19 @@ public class ValorantCraftClient implements ClientModInitializer {
 			while (abilityKey.wasPressed()) {
 				ClientPlayNetworking.send(new AbilityPayload());
 			}
+
+			// Deferred by a tick: opening a screen directly from a chat-typed command gets
+			// immediately closed again by the chat screen's own "close after send" logic.
+			if (openAgentScreenNextTick) {
+				openAgentScreenNextTick = false;
+				client.setScreen(new AgentScreen());
+			}
 		});
 
 		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
 				dispatcher.register(ClientCommandManager.literal("valorant")
 						.then(ClientCommandManager.literal("agent").executes(context -> {
-							context.getSource().getClient().setScreen(new AgentScreen());
+							openAgentScreenNextTick = true;
 							return 1;
 						}))));
 	}
