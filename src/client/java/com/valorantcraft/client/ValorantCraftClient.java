@@ -2,6 +2,8 @@ package com.valorantcraft.client;
 
 import com.valorantcraft.AbilityPayload;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -29,5 +31,12 @@ public class ValorantCraftClient implements ClientModInitializer {
 				ClientPlayNetworking.send(new AbilityPayload());
 			}
 		});
+
+		ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
+				dispatcher.register(ClientCommandManager.literal("valorant")
+						.then(ClientCommandManager.literal("agent").executes(context -> {
+							context.getSource().getClient().setScreen(new AgentScreen());
+							return 1;
+						}))));
 	}
 }
