@@ -1,0 +1,20 @@
+{
+	"itemGroup.valorantcraft.main": "ValorantCraft",
+	"item.valorantcraft.classic": "Classic",
+	"item.valorantcraft.sheriff": "Sheriff",
+	"item.valorantcraft.spectre": "Spectre",
+	"item.valorantcraft.vandal": "Vandal",
+	"item.valorantcraft.phantom": "Phantom",
+	"item.valorantcraft.operator": "Operator",
+	"item.valorantcraft.spike": "Spike",
+	"tooltip.valorantcraft.damage": "Body damage: %s",
+	"tooltip.valorantcraft.fire_mode": "Fire mode: %s",
+	"key.valorantcraft.fire": "Fire",
+	"key.valorantcraft.reload": "Reload",
+	"key.valorantcraft.ability_q": "Ability (Q)",
+	"key.valorantcraft.ability_e": "Ability (E slot)",
+	"key.valorantcraft.ability_c": "Ability (C)",
+	"key.valorantcraft.ability_ultimate": "Ultimate",
+	"key.valorantcraft.shop": "Open Shop",
+	"key.category.valorantcraft": "ValorantCraft"
+}
