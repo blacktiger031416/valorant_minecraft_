@@ -1,6 +1,5 @@
 package com.valorantcraft.client;
 
-import com.valorantcraft.AbilityPayload;
 import com.valorantcraft.SmokePayload;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
@@ -14,7 +13,7 @@ import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
 
 public class ValorantCraftClient implements ClientModInitializer {
-	private static KeyBinding abilityKey;
+	private static KeyBinding updraftKey;
 	private static KeyBinding dashKey;
 	private static KeyBinding smokeKey;
 	private static volatile boolean openAgentScreenNextTick = false;
@@ -22,8 +21,8 @@ public class ValorantCraftClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
-		abilityKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-				"key.valorantcraft.ability",
+		updraftKey = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+				"key.valorantcraft.updraft",
 				InputUtil.Type.KEYSYM,
 				GLFW.GLFW_KEY_Q,
 				"key.category.valorantcraft"
@@ -45,9 +44,6 @@ public class ValorantCraftClient implements ClientModInitializer {
 			if (client.player == null) {
 				return;
 			}
-			while (abilityKey.wasPressed()) {
-				ClientPlayNetworking.send(new AbilityPayload());
-			}
 
 			// Deferred by a tick: opening a screen directly from a chat-typed command gets
 			// immediately closed again by the chat screen's own "close after send" logic.
@@ -57,6 +53,7 @@ public class ValorantCraftClient implements ClientModInitializer {
 			}
 
 			handleJettPassive(client);
+			handleJettUpdraft(client);
 			handleJettDash(client);
 			handleJettSmoke(client);
 		});
@@ -83,6 +80,21 @@ public class ValorantCraftClient implements ClientModInitializer {
 		if (velocity.y < slowFallSpeed) {
 			player.setVelocity(velocity.x, slowFallSpeed, velocity.z);
 		}
+	}
+
+	/** Jett's Updraft: press Q for a one-time upward velocity impulse - a brief boost up, then gravity brings her back down. */
+	private static void handleJettUpdraft(net.minecraft.client.MinecraftClient client) {
+		if (ClientAgentState.selected != ClientAgentState.Agent.JETT) {
+			return;
+		}
+		if (!updraftKey.wasPressed()) {
+			return;
+		}
+		var player = client.player;
+		double updraftSpeed = 1.4;
+		Vec3d velocity = player.getVelocity();
+		player.setVelocity(velocity.x, updraftSpeed, velocity.z);
+		player.velocityModified = true;
 	}
 
 	/**
